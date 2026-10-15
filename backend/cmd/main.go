@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/z3vxo/TokenJack/internal/core"
+	"github.com/z3vxo/TokenJack/internal/server"
 	"github.com/z3vxo/TokenJack/internal/setup"
 )
 
@@ -18,9 +18,9 @@ func main() {
 		return
 	}
 
-	server, err := core.New()
+	srv, err := server.New()
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.Run()
+	srv.Run()
 }

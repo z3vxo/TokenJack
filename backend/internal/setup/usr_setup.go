@@ -14,6 +14,13 @@ import (
 )
 
 func GenUserAccount(conn *sql.DB) error {
+	if user := os.Getenv("JACKER_USER"); user != "" {
+		if pass := os.Getenv("JACKER_PASSWD"); pass != "" {
+			fmt.Println("[*] Env vars detected")
+			return db.InsertUser(conn, user, pass)
+		}
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 
 	var user string

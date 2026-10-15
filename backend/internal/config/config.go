@@ -1,8 +1,11 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -10,6 +13,7 @@ import (
 type Config struct {
 	Server  ServerConfig  `toml:"server"`
 	TLS     TLSConfig     `toml:"TLS"`
+	Auth    AuthConfig    `toml:"auth"`
 	Logging LoggingConfig `toml:"logging"`
 }
 
@@ -24,9 +28,16 @@ type LoggingConfig struct {
 	Level   string `toml:"level"`
 }
 
+type AuthConfig struct {
+	AccessSecret  string        `toml:"access_secret"`
+	RefreshSecret string        `toml:"refresh_secret"`
+	AccessTTL     time.Duration `toml:"access_ttl"`
+	RefreshTTL    time.Duration `toml:"refresh_ttl"`
+}
+
 type ServerConfig struct {
 	Bind string `toml:"bind"`
-	Port int    `tom:"port"`
+	Port int    `toml:"port"`
 }
 
 func Generate(path string) error {
@@ -38,6 +49,19 @@ func Generate(path string) error {
 	cfg.TLS.Hostname = "127.0.0.1"
 	cfg.TLS.CertFile = ""
 	cfg.TLS.KeyFile = ""
+
+	accessSecret, err := genSecret()
+	if err != nil {
+		return err
+	}
+	refreshSecret, err := genSecret()
+	if err != nil {
+		return err
+	}
+	cfg.Auth.AccessSecret = accessSecret
+	cfg.Auth.RefreshSecret = refreshSecret
+	cfg.Auth.AccessTTL = 15 * time.Minute
+	cfg.Auth.RefreshTTL = 7 * 24 * time.Hour
 
 	cfg.Logging.Enabled = true
 	cfg.Logging.Level = "info"
@@ -54,6 +78,14 @@ func Generate(path string) error {
 	defer f.Close()
 
 	return toml.NewEncoder(f).Encode(cfg)
+}
+
+func genSecret() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func Get() (*Config, error) {

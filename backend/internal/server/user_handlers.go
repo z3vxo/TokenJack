@@ -1,4 +1,4 @@
-package core
+package server
 
 import (
 	"encoding/json"
@@ -33,6 +33,13 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	default:
 		s.WriteJson(w, http.StatusInternalServerError, map[string]string{"Status": "error"})
 	}
+}
 
-	return
+func (s *Server) HandleMe(w http.ResponseWriter, r *http.Request) {
+	claims, ok := s.Auth.FromContext(r.Context())
+	if !ok {
+		s.WriteJson(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	s.WriteJson(w, http.StatusOK, map[string]string{"username": claims.Username})
 }

@@ -1,4 +1,4 @@
-package core
+package server
 
 import (
 	"crypto/ecdsa"
@@ -14,14 +14,16 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/z3vxo/TokenJack/internal/auth"
+	"github.com/z3vxo/TokenJack/internal/codes"
 	"github.com/z3vxo/TokenJack/internal/config"
 	"github.com/z3vxo/TokenJack/internal/db"
 )
 
 type Server struct {
-	DB   *db.DB
-	Cfg  *config.Config
-	Auth *auth.Auth
+	DB    *db.DB
+	Cfg   *config.Config
+	Auth  *auth.Auth
+	Codes *codes.Codes
 }
 
 func New() (*Server, error) {
@@ -33,12 +35,40 @@ func New() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{DB: d, Cfg: c, Auth: auth.New([]byte("1234"), []byte("1asdad"))}, nil
+
+	codes := codes.New(d)
+	return &Server{
+		DB:    d,
+		Cfg:   c,
+		Auth:  auth.New([]byte(c.Auth.AccessSecret), []byte(c.Auth.RefreshSecret), c.Auth.AccessTTL, c.Auth.RefreshTTL),
+		Codes: codes,
+	}, nil
+}
+
+func (s *Server) SetupRouter() chi.Router {
+	r := chi.NewRouter()
+
+	r.Get("/admin", s.HandleAdminRoute)
+	r.Get("/admin/*", s.HandleAdminRoute)
+
+	r.Route("/rest", func(r chi.Router) {
+		r.Post("/user/login", s.HandleLogin)
+		r.Post("/code/generate", s.GenerateCode)
+
+		r.Group(func(r chi.Router) {
+			r.Use(s.Auth.AuthWare())
+			r.Get("/user/me", s.HandleMe)
+
+			r.Get("/campaigns/list", s.HandleListCampaigns)
+			r.Post("/campaign/new", s.HandleNewCampaign)
+
+		})
+	})
+	return r
 }
 
 func (s *Server) Run() error {
-	r := chi.NewRouter()
-	r.Post("/rest/login", s.HandleLogin)
+	r := s.SetupRouter()
 
 	listenAddr := fmt.Sprintf("%s:%d", s.Cfg.Server.Bind, s.Cfg.Server.Port)
 

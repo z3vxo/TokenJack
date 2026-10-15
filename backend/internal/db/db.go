@@ -19,13 +19,21 @@ var migrations = []string{
 		username TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	);
-	CREATE TABLE IF NOT EXISTS campaigns(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		uuid TEXT NOT NULL UNIQUE,
-		name TEXT NOT NULL UNIQUE,
-		tenant_id TEXT NOT NULL UNIQUE
 	);`,
+	`CREATE TABLE IF NOT EXISTS campaigns(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		UniqueStr TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL UNIQUE,
+		tenant_id TEXT NOT NULL UNIQUE,
+		resource TEXT NOT NULL,
+		scopes TEXT NOT NULL CHECK (json_valid(scopes))
+	);`,
+	`CREATE TABLE IF NOT EXISTS tokens(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		tenant_id TEXT NOT NULL,
+		access_token TEXT NOT NULL,
+		refresh_token TEXT NOT NULL
+	);`, // just for testing, so can verify if works
 }
 
 func migrate(c *sql.DB) error {

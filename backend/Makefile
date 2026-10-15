@@ -1,15 +1,20 @@
-BINARY  := build/server
-CMD     := ./cmd/main.go
-LDFLAGS := -ldflags "-s -w"
+BINARY   := build/server
+CMD      := ./cmd/main.go
+LDFLAGS  := -ldflags "-s -w"
+FRONTEND := ../frontend
 
 
 .DEFAULT_GOAL := server
 
-.PHONY: server debug clean
+.PHONY: server debug clean frontend
 
-server:
+server: frontend
 	@mkdir -p build
 	go build $(LDFLAGS) -o $(BINARY) $(CMD)
+
+frontend:
+	npm --prefix $(FRONTEND) install --no-audit --no-fund
+	npm --prefix $(FRONTEND) run build
 
 
 debug:
