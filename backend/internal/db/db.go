@@ -26,13 +26,16 @@ var migrations = []string{
 		name TEXT NOT NULL UNIQUE,
 		tenant_id TEXT NOT NULL UNIQUE,
 		resource TEXT NOT NULL,
+		clicks INTEGER NOT NULL DEFAULT 0,
 		scopes TEXT NOT NULL CHECK (json_valid(scopes))
 	);`,
 	`CREATE TABLE IF NOT EXISTS tokens(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		tenant_id TEXT NOT NULL,
+		unqiueStr TEXT NOT NULL,
 		access_token TEXT NOT NULL,
-		refresh_token TEXT NOT NULL
+		refresh_token TEXT NOT NULL,
+		FOREIGN KEY (unqiueStr) REFERENCES campaigns(UniqueStr) ON DELETE CASCADE
 	);`, // just for testing, so can verify if works
 }
 

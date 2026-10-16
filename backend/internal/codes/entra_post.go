@@ -25,6 +25,7 @@ type EntraResp struct {
 	Expires    int    `json:"expires_in"`
 	Interval   int    `json:"interval"`
 	Tenant     string
+	UnqiueStr  string
 }
 
 func (c *Codes) PostEntraDeviceCode(info db.CodeInfo) (EntraResp, error) {
@@ -62,6 +63,7 @@ func (c *Codes) PostEntraDeviceCode(info db.CodeInfo) (EntraResp, error) {
 		return EntraResp{}, err
 	}
 	dcr.Tenant = info.TenantId
+	dcr.UnqiueStr = info.UnqiueStr
 
 	return dcr, nil
 }
@@ -83,7 +85,11 @@ func (c *Codes) PollDeviceCode(dcr EntraResp) error {
 
 			tokens, err := c.CheckToken(dcr)
 			if err == nil {
-				c.DB.InsertTokens(dcr.Tenant, tokens.AccessToken, tokens.RefreshToken)
+				if insErr := c.DB.InsertTokens(dcr.Tenant, tokens.AccessToken, tokens.RefreshToken, dcr.UnqiueStr); insErr != nil {
+					fmt.Println("insert token:", insErr)
+				} else {
+					c.publish(dcr.UnqiueStr, "New token issued.")
+				}
 				c.Remove(dcr)
 				return nil
 			}

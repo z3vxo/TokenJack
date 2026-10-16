@@ -5,9 +5,18 @@ import CampaignDropdown from "./CampaignDropdown.jsx";
 import AppNav from "./AppNav.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { clearTokens } from "../lib/auth.js";
+import { useToast } from "./Toast.jsx";
+import { useCampaignEvent } from "../context/EventsContext.jsx";
 
 export default function AppLayout() {
   const navigate = useNavigate();
+  const toast = useToast();
+
+  useCampaignEvent((event) => {
+    if (event?.type === "token") {
+      toast.success(event.message || "New token issued");
+    }
+  });
 
   function signOut() {
     clearTokens();

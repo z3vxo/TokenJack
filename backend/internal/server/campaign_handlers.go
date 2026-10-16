@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi"
 )
 
 func (s *Server) HandleListCampaigns(w http.ResponseWriter, r *http.Request) {
@@ -54,4 +56,18 @@ func (s *Server) HandleNewCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.WriteJson(w, http.StatusOK, map[string]string{"id": UrlString})
+}
+
+func (s *Server) HandleCamapaignMeta(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	data, err := s.DB.GetCampaignMeta(id)
+	if err != nil {
+		s.WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "database failed"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(data)
 }

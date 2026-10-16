@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
 
 const TABS = [
+  { to: "/overview", label: "Overview" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/automation", label: "Automation" },
-  { to: "/codes", label: "Codes" },
+  { to: "/tokens", label: "Tokens" },
   { to: "/settings", label: "Settings" },
 ];
 
@@ -13,7 +14,7 @@ export default function AppNav() {
       aria-label="Sections"
       className="overflow-x-auto border-b border-border bg-card"
     >
-      <ul className="mx-auto flex w-max items-center gap-6 px-6">
+      <ul className="mx-auto flex w-max items-center gap-10 px-6">
         {TABS.map((tab) => (
           <li key={tab.to} className="shrink-0">
             <NavLink

@@ -18,42 +18,34 @@ export function CampaignProvider({ children }) {
   const [selected, setSelected] = useState(loadCampaign);
   const [status, setStatus] = useState("loading");
 
-  useEffect(() => {
-    let cancelled = false;
+  const reload = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const data = await getCampaigns();
+      const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
+      setCampaigns(list);
+      setStatus("ready");
 
-    (async () => {
-      try {
-        const data = await getCampaigns();
-        if (cancelled) return;
-
-        const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
-        setCampaigns(list);
-        setStatus("ready");
-
-        setSelected((current) => {
-          if (current && !list.some((c) => c.uniqueURI === current.uniqueURI)) {
-            saveCampaign(null);
-            return null;
-          }
-          return current;
-        });
-      } catch (err) {
-        if (cancelled) return;
-
-        if (err?.status === 401) {
-          clearTokens();
-          navigate("/login", { replace: true });
-          return;
+      setSelected((current) => {
+        if (current && !list.some((c) => c.uniqueURI === current.uniqueURI)) {
+          saveCampaign(null);
+          return null;
         }
-
-        setStatus("error");
+        return current;
+      });
+    } catch (err) {
+      if (err?.status === 401) {
+        clearTokens();
+        navigate("/login", { replace: true });
+        return;
       }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+      setStatus("error");
+    }
   }, [navigate]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   const select = useCallback((campaign) => {
     setSelected(campaign);
@@ -61,7 +53,9 @@ export function CampaignProvider({ children }) {
   }, []);
 
   return (
-    <CampaignContext.Provider value={{ campaigns, selected, select, status }}>
+    <CampaignContext.Provider
+      value={{ campaigns, selected, select, status, reload }}
+    >
       {children}
     </CampaignContext.Provider>
   );

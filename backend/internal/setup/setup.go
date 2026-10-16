@@ -22,7 +22,10 @@ func Run() error {
 		filepath.Join(base, "database"),
 		filepath.Join(base, "logs"),
 		filepath.Join(base, "config"),
-		filepath.Join(base, "user-files")}
+		filepath.Join(base, "user-files"),
+		filepath.Join(base, "templates"),
+		filepath.Join(base, "templates", "test"),
+	}
 
 	files := []string{
 		filepath.Join(base, "database", "jacker.db"),
@@ -30,6 +33,7 @@ func Run() error {
 		filepath.Join(base, "logs", "access.log"),
 		filepath.Join(base, "logs", "error.log"),
 		filepath.Join(base, "logs", "genernal.log"),
+		filepath.Join(base, "templates", "test", "index.html"),
 	}
 
 	for _, d := range dir {

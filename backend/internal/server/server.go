@@ -17,17 +17,19 @@ import (
 	"github.com/z3vxo/TokenJack/internal/codes"
 	"github.com/z3vxo/TokenJack/internal/config"
 	"github.com/z3vxo/TokenJack/internal/db"
+	"github.com/z3vxo/TokenJack/internal/events"
 )
 
 type Server struct {
-	DB    *db.DB
-	Cfg   *config.Config
-	Auth  *auth.Auth
-	Codes *codes.Codes
+	DB     *db.DB
+	Cfg    *config.Config
+	Auth   *auth.Auth
+	Codes  *codes.Codes
+	Events *events.Hub
 }
 
 func New() (*Server, error) {
-	d, err := db.New()
+	db, err := db.New()
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +38,14 @@ func New() (*Server, error) {
 		return nil, err
 	}
 
-	codes := codes.New(d)
+	hub := events.New()
+	codes := codes.New(db, hub)
 	return &Server{
-		DB:    d,
-		Cfg:   c,
-		Auth:  auth.New([]byte(c.Auth.AccessSecret), []byte(c.Auth.RefreshSecret), c.Auth.AccessTTL, c.Auth.RefreshTTL),
-		Codes: codes,
+		DB:     db,
+		Cfg:    c,
+		Auth:   auth.New([]byte(c.Auth.AccessSecret), []byte(c.Auth.RefreshSecret), c.Auth.AccessTTL, c.Auth.RefreshTTL),
+		Codes:  codes,
+		Events: hub,
 	}, nil
 }
 
@@ -51,9 +55,15 @@ func (s *Server) SetupRouter() chi.Router {
 	r.Get("/admin", s.HandleAdminRoute)
 	r.Get("/admin/*", s.HandleAdminRoute)
 
+	// landing pages
+	r.Get("/{path}", s.HandleLandingPage)
+	r.Get("/{path}/*", s.HandleLandingMisc)
+
 	r.Route("/rest", func(r chi.Router) {
 		r.Post("/user/login", s.HandleLogin)
 		r.Post("/code/generate", s.GenerateCode)
+
+		r.Get("/events/{id}", s.HandleEvents)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.Auth.AuthWare())
@@ -61,6 +71,7 @@ func (s *Server) SetupRouter() chi.Router {
 
 			r.Get("/campaigns/list", s.HandleListCampaigns)
 			r.Post("/campaign/new", s.HandleNewCampaign)
+			r.Get("/campaign/meta/{id}", s.HandleCamapaignMeta)
 
 		})
 	})

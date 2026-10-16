@@ -10,6 +10,11 @@ import (
 type GenCodeReq struct {
 	Id string `json:"id"`
 }
+type GenCodeResp struct {
+	Message string `json:"message"`
+	Code    string `json:"code"`
+	Url     string `json:"url"`
+}
 
 func (s *Server) GenerateCode(w http.ResponseWriter, r *http.Request) {
 	var req GenCodeReq
@@ -28,12 +33,23 @@ func (s *Server) GenerateCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.Codes.InsertAndBeginPoll(CodeInfo); err != nil {
+	code, url, err := s.Codes.InsertAndBeginPoll(CodeInfo)
+	if err != nil {
 		s.WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed inserting and polling code"})
 		return
 	}
 
-	s.WriteJson(w, http.StatusOK, map[string]string{"status": "polling"})
+	s.DB.UpdateClick(req.Id)
+	data := &GenCodeResp{
+		Message: "polling",
+		Code:    code,
+		Url:     url,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(data)
 	return
 
 }
