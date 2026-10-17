@@ -1,6 +1,7 @@
 package codes
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,7 +30,13 @@ type EntraResp struct {
 }
 
 func (c *Codes) PostEntraDeviceCode(info db.CodeInfo) (EntraResp, error) {
-	Url := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/devicecode", info.TenantId)
+	var tenantStr string
+	if info.TenantId == "" {
+		tenantStr = "common"
+	} else {
+		tenantStr = info.TenantId
+	}
+	Url := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/devicecode", tenantStr)
 	ClientId := "04b07795-8ddb-461a-bbee-02f9e1bf7b46" // hard coded value for now, just for testing
 
 	var Scopes []string
@@ -85,7 +92,7 @@ func (c *Codes) PollDeviceCode(dcr EntraResp) error {
 
 			tokens, err := c.CheckToken(dcr)
 			if err == nil {
-				if insErr := c.DB.InsertTokens(dcr.Tenant, tokens.AccessToken, tokens.RefreshToken, dcr.UnqiueStr); insErr != nil {
+				if insErr := c.DB.InsertTokens(tokens.TenantID, tokens.AccessToken, tokens.RefreshToken, dcr.UnqiueStr); insErr != nil {
 					fmt.Println("insert token:", insErr)
 				} else {
 					c.publish(dcr.UnqiueStr, "New token issued.")
@@ -101,8 +108,13 @@ func (c *Codes) PollDeviceCode(dcr EntraResp) error {
 }
 
 type TokenResult struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	IDToken      string `json:"id_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	Scope        string `json:"scope"`
+	TenantID     string
 }
 
 func (c *Codes) CheckToken(dcr EntraResp) (TokenResult, error) {
@@ -122,13 +134,39 @@ func (c *Codes) CheckToken(dcr EntraResp) (TokenResult, error) {
 	if resp.StatusCode != http.StatusOK {
 		return TokenResult{}, fmt.Errorf("authorization_pending")
 	}
-	var res map[string]any
+	var res TokenResult
 	json.NewDecoder(resp.Body).Decode(&res)
-	a, _ := res["access_token"].(string)
-	r, _ := res["refresh_token"].(string)
+	if err := ExtractTenantId(&res); err != nil {
+		return TokenResult{}, err
+	}
 
-	return TokenResult{
-		AccessToken:  a,
-		RefreshToken: r,
-	}, nil
+	return res, nil
+}
+
+func ExtractTenantId(res *TokenResult) error {
+	parts := strings.Split(res.IDToken, ".")
+	if len(parts) != 3 {
+		return fmt.Errorf("invalid id_token")
+	}
+	payload := parts[1]
+	switch len(payload) % 4 {
+	case 2:
+		payload += "=="
+	case 3:
+		payload += "="
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(payload)
+	if err != nil {
+		return err
+	}
+	var claims struct {
+		TID string `json:"tid"`
+	}
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return err
+	}
+
+	res.TenantID = claims.TID
+	return nil
 }

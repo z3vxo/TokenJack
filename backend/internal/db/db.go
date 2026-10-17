@@ -24,7 +24,7 @@ var migrations = []string{
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		UniqueStr TEXT NOT NULL UNIQUE,
 		name TEXT NOT NULL UNIQUE,
-		tenant_id TEXT NOT NULL UNIQUE,
+		tenant_id TEXT NOT NULL DEFAULT 'common',
 		resource TEXT NOT NULL,
 		clicks INTEGER NOT NULL DEFAULT 0,
 		scopes TEXT NOT NULL CHECK (json_valid(scopes))
@@ -35,6 +35,7 @@ var migrations = []string{
 		unqiueStr TEXT NOT NULL,
 		access_token TEXT NOT NULL,
 		refresh_token TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (unqiueStr) REFERENCES campaigns(UniqueStr) ON DELETE CASCADE
 	);`, // just for testing, so can verify if works
 }

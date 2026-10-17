@@ -13,6 +13,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/z3vxo/TokenJack/internal/api/campaign"
+	"github.com/z3vxo/TokenJack/internal/api/code"
+	"github.com/z3vxo/TokenJack/internal/api/event"
+	"github.com/z3vxo/TokenJack/internal/api/site"
+	"github.com/z3vxo/TokenJack/internal/api/tokens"
+	"github.com/z3vxo/TokenJack/internal/api/user"
 	"github.com/z3vxo/TokenJack/internal/auth"
 	"github.com/z3vxo/TokenJack/internal/codes"
 	"github.com/z3vxo/TokenJack/internal/config"
@@ -26,6 +32,13 @@ type Server struct {
 	Auth   *auth.Auth
 	Codes  *codes.Codes
 	Events *events.Hub
+
+	user     *user.Handler
+	campaign *campaign.Handler
+	code     *code.Handler
+	event    *event.Handler
+	site     *site.Handler
+	tokens   *tokens.Handler
 }
 
 func New() (*Server, error) {
@@ -38,43 +51,42 @@ func New() (*Server, error) {
 		return nil, err
 	}
 
+	authn := auth.New([]byte(c.Auth.AccessSecret), []byte(c.Auth.RefreshSecret), c.Auth.AccessTTL, c.Auth.RefreshTTL)
 	hub := events.New()
-	codes := codes.New(db, hub)
+	codesSvc := codes.New(db, hub)
+
 	return &Server{
 		DB:     db,
 		Cfg:    c,
-		Auth:   auth.New([]byte(c.Auth.AccessSecret), []byte(c.Auth.RefreshSecret), c.Auth.AccessTTL, c.Auth.RefreshTTL),
-		Codes:  codes,
+		Auth:   authn,
+		Codes:  codesSvc,
 		Events: hub,
+
+		user:     user.New(db, authn),
+		campaign: campaign.New(db, authn),
+		code:     code.New(db, codesSvc),
+		event:    event.New(authn, hub),
+		site:     site.New(db),
+		tokens:   tokens.New(db, authn),
 	}, nil
 }
 
 func (s *Server) SetupRouter() chi.Router {
 	r := chi.NewRouter()
 
-	r.Get("/admin", s.HandleAdminRoute)
-	r.Get("/admin/*", s.HandleAdminRoute)
-
-	// landing pages
-	r.Get("/{path}", s.HandleLandingPage)
-	r.Get("/{path}/*", s.HandleLandingMisc)
+	r.Get("/admin", s.site.Admin)
+	r.Get("/admin/*", s.site.Admin)
+	r.Get("/{path}", s.site.LandingPage)
+	r.Get("/{path}/*", s.site.LandingMisc)
 
 	r.Route("/rest", func(r chi.Router) {
-		r.Post("/user/login", s.HandleLogin)
-		r.Post("/code/generate", s.GenerateCode)
-
-		r.Get("/events/{id}", s.HandleEvents)
-
-		r.Group(func(r chi.Router) {
-			r.Use(s.Auth.AuthWare())
-			r.Get("/user/me", s.HandleMe)
-
-			r.Get("/campaigns/list", s.HandleListCampaigns)
-			r.Post("/campaign/new", s.HandleNewCampaign)
-			r.Get("/campaign/meta/{id}", s.HandleCamapaignMeta)
-
-		})
+		r.Mount("/user", s.user.Routes())
+		r.Mount("/campaign", s.campaign.Routes())
+		r.Mount("/code", s.code.Routes())
+		r.Mount("/events", s.event.Routes())
+		r.Mount("/tokens", s.tokens.Routes())
 	})
+
 	return r
 }
 

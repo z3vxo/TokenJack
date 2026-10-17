@@ -198,7 +198,7 @@ Backend (all except login require `Authorization: Bearer <access>`):
 
 - `POST /rest/user/login` — JSON `{"username": "...", "password": "..."}`; returns `{"access": "...", "refresh": "..."}` on 200.
 - `GET /rest/user/me` — on 401, redirect to `/login`.
-- `GET /rest/campaigns/list` — returns `{"total": int, "campaigns": [{"name": str, "tenant_id": str, "uniqueURI": str}, ...]}`. Backed by `db.GetCampaigns()` / `server.HandleListCampaigns`.
+- `GET /rest/campaign/list` — returns `{"total": int, "campaigns": [{"name": str, "tenant_id": str, "uniqueURI": str}, ...]}`. Backed by `db.GetCampaigns()` / `api/campaign.Handler.List`.
 - `POST /rest/campaign/new` — create a campaign; see `backend/internal/server/types.go`. Returns 200 / 400 / 500.
 
 Client routing (React Router, `basename="/admin"`):

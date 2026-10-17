@@ -26,7 +26,7 @@ export async function login(username, password) {
 export async function getCampaigns() {
   let res;
   try {
-    res = await fetch("/rest/campaigns/list", {
+    res = await fetch("/rest/campaign/list", {
       headers: { Authorization: `Bearer ${getAccess()}` },
     });
   } catch {

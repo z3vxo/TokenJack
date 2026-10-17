@@ -1,4 +1,4 @@
-package server
+package site
 
 import (
 	"fmt"
@@ -8,14 +8,27 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
+	"github.com/z3vxo/TokenJack/internal/db"
+	"github.com/z3vxo/TokenJack/internal/web"
 )
 
-func (s *Server) HandleLandingPage(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	DB *db.DB
+}
+
+func New(d *db.DB) *Handler {
+	return &Handler{DB: d}
+}
+
+func (h *Handler) Admin(w http.ResponseWriter, r *http.Request) {
+	web.Handler().ServeHTTP(w, r)
+}
+
+func (h *Handler) LandingPage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "path")
-	exits, err := s.DB.EnsureLandingIdExists(id)
+	exits, err := h.DB.EnsureLandingIdExists(id)
 	if err != nil {
 		fmt.Println(err)
-
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -29,7 +42,6 @@ func (s *Server) HandleLandingPage(w http.ResponseWriter, r *http.Request) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Println(err)
-
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -38,10 +50,10 @@ func (s *Server) HandleLandingPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-func (s *Server) HandleLandingMisc(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LandingMisc(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "path")
 	asset := chi.URLParam(r, "*")
-	exits, err := s.DB.EnsureLandingIdExists(id)
+	exits, err := h.DB.EnsureLandingIdExists(id)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -68,6 +80,4 @@ func (s *Server) HandleLandingMisc(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(filePath)
 
 	http.ServeFile(w, r, filePath)
-	return
-
 }

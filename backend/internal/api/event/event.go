@@ -1,4 +1,4 @@
-package server
+package event
 
 import (
 	"fmt"
@@ -7,27 +7,45 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/z3vxo/TokenJack/internal/api"
+	"github.com/z3vxo/TokenJack/internal/auth"
+	"github.com/z3vxo/TokenJack/internal/events"
 )
 
-const eventPingInterval = 25 * time.Second
+const pingInterval = 25 * time.Second
 
-func (s *Server) HandleEvents(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	Auth   *auth.Auth
+	Events *events.Hub
+}
+
+func New(a *auth.Auth, hub *events.Hub) *Handler {
+	return &Handler{Auth: a, Events: hub}
+}
+
+func (h *Handler) Routes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/{id}", h.Stream)
+	return r
+}
+
+func (h *Handler) Stream(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	token := bearerToken(r)
 
 	if id == "" || token == "" {
-		s.WriteJson(w, http.StatusUnauthorized, map[string]string{"error": "missing id or auth token"})
+		api.Error(w, http.StatusUnauthorized, "missing id or auth token")
 		return
 	}
 
-	if _, err := s.Auth.Verify(token); err != nil {
-		s.WriteJson(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	if _, err := h.Auth.Verify(token); err != nil {
+		api.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		s.WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "streaming unsupported"})
+		api.Error(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
 
@@ -39,11 +57,11 @@ func (s *Server) HandleEvents(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
-	client := s.Events.Subscribe(id)
-	defer s.Events.Unsubscribe(client)
+	client := h.Events.Subscribe(id)
+	defer h.Events.Unsubscribe(client)
 
 	ctx := r.Context()
-	ping := time.NewTicker(eventPingInterval)
+	ping := time.NewTicker(pingInterval)
 	defer ping.Stop()
 
 	for {
